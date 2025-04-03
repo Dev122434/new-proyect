@@ -9,8 +9,9 @@ import java.util.List;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Query;
-import javax.persistence.EntityNotFoundException;
+import javax.persistence.NoResultException;
 import javax.persistence.Persistence;
+import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import javax.transaction.UserTransaction;
@@ -30,6 +31,7 @@ public class AutoJpaController implements Serializable {
     }
     private UserTransaction utx = null;
     private EntityManagerFactory emf = null;
+    private EntityManager entityManager = null;
 
     public EntityManager getEntityManager() {
         return emf.createEntityManager();
@@ -88,34 +90,6 @@ public class AutoJpaController implements Serializable {
         }
     }
 
-    public void destroy(int id) throws NonexistentEntityException, RollbackFailureException, Exception {
-        EntityManager em = null;
-        try {
-            utx.begin();
-            em = getEntityManager();
-            Auto auto;
-            try {
-                auto = em.getReference(Auto.class, id);
-                auto.getId();
-            } catch (EntityNotFoundException enfe) {
-                throw new NonexistentEntityException("The auto with id " + id + " no longer exists.", enfe);
-            }
-            em.remove(auto);
-            utx.commit();
-        } catch (Exception ex) {
-            try {
-                utx.rollback();
-            } catch (Exception re) {
-                throw new RollbackFailureException("An error occurred attempting to roll back the transaction.", re);
-            }
-            throw ex;
-        } finally {
-            if (em != null) {
-                em.close();
-            }
-        }
-    }
-
     public List<Auto> findAutoEntities() {
         return findAutoEntities(true, -1, -1);
     }
@@ -160,6 +134,21 @@ public class AutoJpaController implements Serializable {
         } finally {
             em.close();
         }
+    }
+
+    public Auto obtenerAutoPorClave(String clave) {
+        // JPQL para buscar el auto por la clave
+        String jpql = "SELECT a FROM Auto a WHERE a.clave = :clave";
+        TypedQuery<Auto> query = entityManager.createQuery(jpql, Auto.class);
+        query.setParameter("clave", clave);
+        Auto auto = null;
+        try {
+            auto = query.getSingleResult();
+        } catch (NoResultException e) {
+            System.out.println("No se encontró ningún auto con la clave: " + clave);
+        }
+
+        return auto;
     }
 
 }
